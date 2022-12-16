@@ -156,7 +156,7 @@ init_var() {
     # Get random macaddr
     mac_hexchars="0123456789ABCDEF"
     mac_end="$(for i in {1..6}; do echo -n ${mac_hexchars:$((${RANDOM} % 16)):1}; done | sed -e 's/\(..\)/:\1/g')"
-    random_macaddr="9E:61${mac_end}"
+    random_macaddr="FC:CF${mac_end}"
 }
 
 # Search the model list
@@ -523,7 +523,7 @@ EOF
 
     # Set interfaces macaddr
     interfaces_file="${DIR_INSTALL}/etc/network/interfaces"
-    [[ -f "${interfaces_file}" ]] && sed -i "s|hwaddress ether.*|hwaddress ether ${random_macaddr}:AA|g" ${interfaces_file}
+    [[ -f "${interfaces_file}" ]] && sed -i "s|hwaddress ether.*|hwaddress ether ${random_macaddr}:2B|g" ${interfaces_file}
 
     # Optimize wifi/bluetooth module
     [[ -d "${DIR_INSTALL}/usr/lib/firmware/brcm" ]] && (

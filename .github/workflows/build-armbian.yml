@@ -9,6 +9,11 @@ on:
   repository_dispatch:
   workflow_dispatch:
     inputs:
+      build_kernel:
+        description: "Compile kernel."
+        required: false
+        default: true
+        type: boolean
       set_release:
         description: "Select OS Release."
         required: false
@@ -20,7 +25,7 @@ on:
       armbian_board:
         description: "Select Box Board."
         required: false
-        default: "all"
+        default: "s905d"
         type: choice
         options:
           - all
@@ -57,16 +62,22 @@ on:
           - 5.4.225_5.10.155_5.15.80
           - 5.4.225_5.10.155
           - 5.10.155_5.15.80
+          - 5.10.155_6.0.10
           - 5.15.80_6.0.10
           - 5.4.225
           - 5.10.155
           - 5.15.80
+          - 5.19.17
           - 6.0.10
       auto_kernel:
         description: "Auto use the latest kernel."
         required: false
         default: true
         type: boolean
+      kernel_sign:
+        description: "Set the kernel custom signature"
+        required: false
+        default: "-yaling888"
       armbian_size:
         description: "Set armbian rootfs size(Unit: MiB)."
         required: false
@@ -111,6 +122,22 @@ jobs:
           echo "ARMBIAN_RELEASE=${{ inputs.set_release }}" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
+      - name: Compile the kernel
+        uses: yaling888/amlogic-s9xxx-armbian@s905d
+        if: ${{ inputs.build_kernel }}
+        with:
+          build_target: kernel
+          kernel_version: ${{ inputs.armbian_kernel }}
+          kernel_auto: ${{ inputs.auto_kernel }}
+          kernel_sign: ${{ inputs.kernel_sign }}
+
+      - name: Upload Kernel to Artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.build_kernel }} && ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
+        with:
+          name: kernel_${{ env.PACKAGED_OUTPUTTAGS }}
+          path: ${{ env.PACKAGED_OUTPUTPATH }}/*
+
       - name: Download source code
         id: down
         if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
@@ -142,17 +169,24 @@ jobs:
             sudo pigz -9f *.img
             df -hT ${PWD}
 
-      - name: Upload Armbian image to Release
-        uses: ncipollo/release-action@main
-        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+      # - name: Upload Armbian image to Release
+      #   uses: ncipollo/release-action@main
+      #   if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+      #   with:
+      #     tag: ${{ steps.compile.outputs.build_tag }}
+      #     artifacts: build/output/images/*.img.gz
+      #     allowUpdates: true
+      #     token: ${{ secrets.GH_TOKEN }}
+
+      - name: Upload Armbian image to Artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         with:
-          tag: ${{ steps.compile.outputs.build_tag }}
-          artifacts: build/output/images/*.img.gz
-          allowUpdates: true
-          token: ${{ secrets.GH_TOKEN }}
+          name: ${{ steps.compile.outputs.build_tag }}
+          path: build/output/images/*.img.gz
 
       - name: Rebuild Armbian for Amlogic s9xxx
-        uses: ophub/amlogic-s9xxx-armbian@main
+        uses: yaling888/amlogic-s9xxx-armbian@s905d
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
         with:
           build_target: armbian
@@ -164,19 +198,26 @@ jobs:
           armbian_fstype: ${{ inputs.armbian_fstype }}
           armbian_sign: ${{ inputs.armbian_sign }}
 
-      - name: Upload Rebuild image to Release
-        uses: ncipollo/release-action@main
+      # - name: Upload Rebuild image to Release
+      #   uses: ncipollo/release-action@main
+      #   if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
+      #   with:
+      #     tag: ${{ steps.compile.outputs.build_tag }}
+      #     artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
+      #     allowUpdates: true
+      #     token: ${{ secrets.GH_TOKEN }}
+      #     body: |
+      #       This is Armbian image for Amlogic s9xxx tv box
+      #       * Firmware information
+      #       Default username: root
+      #       Default password: 1234
+      #       Install command: armbian-install
+      #       Update command: armbian-update
+
+      - name: Upload Rebuild image to Artifacts
+        uses: actions/upload-artifact@v3
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         with:
-          tag: ${{ steps.compile.outputs.build_tag }}
-          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
-          allowUpdates: true
-          token: ${{ secrets.GH_TOKEN }}
-          body: |
-            This is Armbian image for Amlogic s9xxx tv box
-            * Firmware information
-            Default username: root
-            Default password: 1234
-            Install command: armbian-install
-            Update command: armbian-update
+          name: S905d_${{ steps.compile.outputs.build_tag }}
+          path: ${{ env.PACKAGED_OUTPUTPATH }}/*s905d*.img.gz
 

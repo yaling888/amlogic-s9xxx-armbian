@@ -47,6 +47,7 @@ script_path="${compile_path}/tools/script"
 armbian_path="${compile_path}/tools/armbian"
 armbian_file="${armbian_path}/armbian.img"
 out_kernel="${compile_path}/output"
+build_kernel_path="${make_path}/build-armbian/kernel/stable"
 chroot_path="${out_kernel}/chroot"
 chroot_file="${chroot_path}/chroot_armbian.img"
 arch_info="$(arch)"
@@ -571,6 +572,9 @@ compile_selection() {
     cd ${out_kernel}/${kernel_version}
     sha256sum * >sha256sums
     echo -e "${SUCCESS} The [ sha256sums ] file has been generated"
+
+    mkdir -p ${build_kernel_path}/${kernel_version}
+    cp -f * ${build_kernel_path}/${kernel_version}
 
     cd ${out_kernel}
     tar -czf ${kernel_version}.tar.gz ${kernel_version} && sync && sleep 3
